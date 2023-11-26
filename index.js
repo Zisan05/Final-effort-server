@@ -33,6 +33,7 @@ async function run() {
     const PostCollection = client.db("Final-Effort").collection('Posts');
     const commentsCollection = client.db("Final-Effort").collection('Comments');
     const userCollection = client.db("Final-Effort").collection('Users');
+    const announcesCollection = client.db("Final-Effort").collection('announces');
 
     // Posts
 
@@ -69,9 +70,16 @@ async function run() {
    app.get('/posts/:id',async(req,res) => {
     const id = req.params.id;
     const query = {_id: new ObjectId(id)};
-     const result = await PostCollection.findOne(query)
+     const result = await PostCollection.findOne(query);
      res.send(result);
-   })
+   });
+
+   app.delete('/posts/:id',async(req,res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+    const result = await PostCollection.deleteOne(query);
+    res.send(result);
+   });
 
    app.put('/posts/:id',async(req,res) => {
     const id = req.params.id;
@@ -116,6 +124,41 @@ app.get('/comments',async(req,res) => {
 
   app.get('/users',async(req,res) => {
     const cursor = userCollection.find();
+    const result = await cursor.toArray();
+    res.send(result);
+   })
+
+   app.get('/users/:id',async(req,res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+     const result = await userCollection.findOne(query);
+     res.send(result);
+   });
+
+   app.put('/users/:id',async(req,res) => {
+    const id = req.params.id;
+    const filter = {_id : new ObjectId(id)};
+    const updated = req.body;
+      const updatedAssignment = {
+        $set: {
+          role: "admin",
+        }
+      } 
+      const result = await userCollection.updateOne(filter,updatedAssignment);
+      res.send(result);
+     
+   })
+
+  //  announces 
+
+  app.post('/announces',async(req,res) => {
+    const newAnnounces = req.body;
+    const result = await announcesCollection.insertOne(newAnnounces);
+    res.send(result);
+   })
+
+   app.get('/announces',async(req,res) => {
+    const cursor = announcesCollection.find();
     const result = await cursor.toArray();
     res.send(result);
    })
