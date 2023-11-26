@@ -1,5 +1,5 @@
 const express = require('express');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require("dotenv").config()
 const cors = require("cors");
 const app = express();
@@ -27,12 +27,106 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+
+    // Collections
+    const PostCollection = client.db("Final-Effort").collection('Posts');
+    const commentsCollection = client.db("Final-Effort").collection('Comments');
+    const userCollection = client.db("Final-Effort").collection('Users');
+
+    // Posts
+
+    app.get('/postsCount',async(req,res) => {
+      const count = await PostCollection.estimatedDocumentCount();
+      res.send({count});
+    })
+
+    app.post('/posts',async(req,res) => {
+      const newpost = req.body;
+      
+      const result = await PostCollection.insertOne(newpost);
+      res.send(result);
+  })
+
+   app.get('/posts',async(req,res) => {
+    const filter = req.query;
+    const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+    const query = {};
+    const options = {
+      sort: {
+        upVoteCount: filter.sort === 'asc' ? 1 : -1
+      }
+    }
+    const cursor = PostCollection.find(query,options);
+    const result = await cursor
+    .skip(page * size)
+      .limit(size)
+    .toArray();
+    res.send(result);
+   })
+
+   app.get('/posts/:id',async(req,res) => {
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)};
+     const result = await PostCollection.findOne(query)
+     res.send(result);
+   })
+
+   app.put('/posts/:id',async(req,res) => {
+    const id = req.params.id;
+    const filter = {_id : new ObjectId(id)};
+    const updated = req.body;
+      const markUpdate = {
+        $set: {
+        upVoteCount: updated.upVoteCount,
+        downVoteCount: updated.downVoteCount,
+         
+        }
+      } 
+      const result = await PostCollection.updateOne(filter,markUpdate);
+      res.send(result);
+     
+   })
+
+//    Comments
+
+app.get('/comments',async(req,res) => {
+    const cursor = commentsCollection.find();
+    const result = await cursor.toArray();
+    res.send(result);
+   })
+
+  
+
+   app.post('/comments',async(req,res) => {
+    const newComment = req.body;
+    
+    const result = await commentsCollection.insertOne(newComment);
+    res.send(result);
+})
+
+
+// Users
+  app.post('/users',async(req,res) => {
+   const newUser = req.body;
+   const result = await userCollection.insertOne(newUser);
+   res.send(result);
+  })
+
+  app.get('/users',async(req,res) => {
+    const cursor = userCollection.find();
+    const result = await cursor.toArray();
+    res.send(result);
+   })
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
