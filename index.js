@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require("dotenv").config()
 const cors = require("cors");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -26,7 +27,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
 
     // Collections
@@ -34,6 +35,7 @@ async function run() {
     const commentsCollection = client.db("Final-Effort").collection('Comments');
     const userCollection = client.db("Final-Effort").collection('Users');
     const announcesCollection = client.db("Final-Effort").collection('announces');
+    const payCollection = client.db("Final-Effort").collection('payment');
 
     // Posts
 
@@ -48,6 +50,21 @@ async function run() {
       const result = await PostCollection.insertOne(newpost);
       res.send(result);
   })
+
+  app.put('/posts/:id',async(req,res) => {
+    const id = req.params.id;
+   
+    const filter = {_id : new ObjectId(id)};
+    console.log(filter);
+      const updatedBadge = {
+        $set: {
+          Badge: 'golden',
+        }
+      } 
+      const result = await PostCollection.updateOne(filter,updatedBadge);
+      res.send(result);
+     
+   })
 
    app.get('/posts',async(req,res) => {
     const filter = req.query;
@@ -84,6 +101,7 @@ async function run() {
    app.put('/posts/:id',async(req,res) => {
     const id = req.params.id;
     const filter = {_id : new ObjectId(id)};
+    
     const updated = req.body;
       const markUpdate = {
         $set: {
@@ -164,9 +182,38 @@ app.get('/comments',async(req,res) => {
    })
 
 
+  //  Payment 
+
+  app.post("/create-payment-intent", async (req, res) => {
+    const { price } = req.body;
+    const amount = parseInt(price * 100);
+  
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      });
+  
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      });
+    } catch (error) {
+      console.error("Error creating PaymentIntent:", error.message);
+      res.status(500).json({ error: "Error creating PaymentIntent" });
+    }
+  });
+
+  app.post('/payment',async(req,res) => {
+    const newPaymeny = req.body;
+    const result = await payCollection.insertOne(newPaymeny);
+    res.send(result);
+   })
+
+
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
